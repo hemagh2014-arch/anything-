@@ -350,8 +350,8 @@ client.on('messageCreate', async message => {
     'باقي': 'uptime'
   };
 
-  // الاختصارات التي تقبل معطيات (منشن + سبب)
-  const aliasesWithArgs = new Set(['وارن', 'تحذير']);
+  // الاختصارات التي تقبل معطيات (منشن + سبب + رقم)
+  const aliasesWithArgs = new Set(['وارن', 'تحذير', 'مسح']);
 
   for (const [prefix, cmdName] of Object.entries(legacyAliases)) {
     const acceptsArgs = aliasesWithArgs.has(prefix);
