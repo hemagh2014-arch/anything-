@@ -43,13 +43,12 @@ module.exports = {
     }
 
     try {
-      await message.channel.bulkDelete(amount, true);
-      message.reply(`✅ Successfully deleted ${amount} messages!`).then(msg => {
-        setTimeout(() => msg.delete(), 3000);
-      });
+      await message.channel.bulkDelete(amount + 1, true);
+      const msg = await message.channel.send(`✅ تم حذف ${amount} رسالة!`);
+      setTimeout(() => msg.delete().catch(() => {}), 3000);
     } catch (error) {
       console.error(error);
-      message.reply('❌ There was an error deleting messages!');
+      message.channel.send('❌ حدث خطأ أثناء حذف الرسائل!').catch(() => {});
     }
   }
 };
