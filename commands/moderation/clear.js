@@ -36,10 +36,11 @@ module.exports = {
       return message.reply('❌ You do not have permission to delete messages!');
     }
 
-    const amount = parseInt(args[0]);
+    const arabicToEnglish = str => str ? str.replace(/[٠١٢٣٤٥٦٧٨٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)) : str;
+    const amount = parseInt(arabicToEnglish(args[0]));
 
     if (isNaN(amount) || amount < 1 || amount > 100) {
-      return message.reply('❌ Please provide a number between 1 and 100!');
+      return message.reply('❌ اكتب رقم بين 1 و 100');
     }
 
     try {
