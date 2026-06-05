@@ -350,12 +350,19 @@ client.on('messageCreate', async message => {
     'باقي': 'uptime'
   };
 
+  // الاختصارات التي تقبل معطيات (منشن + سبب)
+  const aliasesWithArgs = new Set(['وارن', 'تحذير']);
+
   for (const [prefix, cmdName] of Object.entries(legacyAliases)) {
-    if (message.content === prefix || message.content.startsWith(prefix + ' ')) {
+    const acceptsArgs = aliasesWithArgs.has(prefix);
+    const isExactMatch = message.content === prefix;
+    const isWithArgs = acceptsArgs && message.content.startsWith(prefix + ' ');
+
+    if (isExactMatch || isWithArgs) {
       const command = client.commands.get(cmdName);
       if (command) {
         let cmdArgs = [];
-        if (message.content.startsWith(prefix + ' ')) {
+        if (isWithArgs) {
           cmdArgs = message.content.slice(prefix.length).trim().split(/ +/);
         }
         await command.executeMessage(message, cmdArgs);
