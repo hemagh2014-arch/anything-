@@ -10,6 +10,7 @@ const { getReviewChannel } = require('./commands/utility/review');
 const { sendWelcome, sendJoinLeaveLog } = require('./utils/welcome');
 const { loadXPData, addXP } = require('./utils/xp');
 const { loadCoinsData, resetAllCoins, resetCoins } = require('./utils/coins');
+const { handleEmbedButton } = require('./utils/embedHandler');
 
 const {
   securityData,
@@ -215,7 +216,11 @@ client.on('interactionCreate', async interaction => {
       await closeTicket(interaction);
     }
 
-    if (interaction.customId.startsWith('rate_')) {
+    if (interaction.customId.startsWith('embed_btn_')) {
+      await handleEmbedButton(interaction);
+    }
+
+        if (interaction.customId.startsWith('rate_')) {
       const stars = parseInt(interaction.customId.split('_')[1]);
       activeReviews.set(interaction.user.id, { stars, timestamp: Date.now() });
 
@@ -288,6 +293,14 @@ client.on('interactionCreate', async interaction => {
         content: `✅ شكراً لك على تقييمك! لقد قيمت الخدمة بـ ${reviewData.stars} نجوم.`,
         ephemeral: true
       });
+    }
+    return;
+  }
+
+  if (interaction.isAutocomplete()) {
+    const acCmd = client.commands.get(interaction.commandName);
+    if (acCmd && acCmd.autocomplete) {
+      try { await acCmd.autocomplete(interaction); } catch(e) { console.error('Autocomplete error:', e); }
     }
     return;
   }
@@ -665,3 +678,4 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 });
 
 client.login(config.token);
+
