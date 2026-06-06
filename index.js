@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const configFile = require("./config.json");
 const config = { ...configFile, token: process.env.DISCORD_TOKEN || configFile.token, clientId: process.env.DISCORD_CLIENT_ID || configFile.clientId };
-const { createTicket, claimTicket, closeTicket } = require('./commands/tickets/ticket');
+const { showTicketMenu, createTicket, claimTicket, closeTicket } = require('./commands/tickets/ticket');
 const { handleSuggestion } = require('./commands/utility/suggestion');
 const { getReviewChannel } = require('./commands/utility/review');
 const { sendWelcome, sendJoinLeaveLog } = require('./utils/welcome');
@@ -179,9 +179,34 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'select_ticket_type') {
+      const selectedValue = interaction.values[0];
+      const settings = (() => {
+        try {
+          const p = require('path').join(__dirname, 'data', 'ticketSettings.json');
+          if (require('fs').existsSync(p)) return JSON.parse(require('fs').readFileSync(p, 'utf8'));
+          return {};
+        } catch { return {}; }
+      })();
+      const guildSettings = settings[interaction.guildId] || {};
+      const types = guildSettings.ticketTypes && guildSettings.ticketTypes.length > 0
+        ? guildSettings.ticketTypes
+        : [
+            { label: 'دعم عام', value: 'general' },
+            { label: 'دعم فني', value: 'technical' },
+            { label: 'شكاوى', value: 'complaint' },
+          ];
+      const chosen = types.find(t => t.value === selectedValue);
+      const typeName = chosen ? chosen.label : selectedValue;
+      await createTicket(interaction, typeName);
+    }
+    return;
+  }
+
   if (interaction.isButton()) {
     if (interaction.customId === 'create_ticket') {
-      await createTicket(interaction);
+      await showTicketMenu(interaction);
     }
     if (interaction.customId === 'claim_ticket') {
       await claimTicket(interaction);
