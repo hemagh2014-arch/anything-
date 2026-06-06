@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const config = require('../../config.json');
@@ -6,9 +6,7 @@ const config = require('../../config.json');
 const settingsPath = path.join(__dirname, '..', '..', 'data', 'ticketSettings.json');
 
 function loadSettings() {
-  if (!fs.existsSync(settingsPath)) {
-    return {};
-  }
+  if (!fs.existsSync(settingsPath)) return {};
   try {
     return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   } catch (error) {
@@ -19,13 +17,45 @@ function loadSettings() {
 
 function saveSettings(settings) {
   const dataDir = path.dirname(settingsPath);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 }
 
-async function createTicket(interaction) {
+const DEFAULT_TICKET_TYPES = [
+  { label: 'دعم عام', value: 'general', emoji: '💬', description: 'استفسارات ومساعدة عامة' },
+  { label: 'دعم فني', value: 'technical', emoji: '🔧', description: 'مشاكل تقنية وأخطاء' },
+  { label: 'شكاوى', value: 'complaint', emoji: '⚠️', description: 'تقديم شكوى أو إبلاغ عن مشكلة' },
+];
+
+async function showTicketMenu(interaction) {
+  const settings = loadSettings();
+  const serverSettings = settings[interaction.guild.id] || {};
+  const ticketTypes = (serverSettings.ticketTypes && serverSettings.ticketTypes.length > 0)
+    ? serverSettings.ticketTypes
+    : DEFAULT_TICKET_TYPES;
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('select_ticket_type')
+    .setPlaceholder('🎫 اختر نوع التيكت...')
+    .addOptions(
+      ticketTypes.map(type => {
+        const option = { label: type.label, value: type.value };
+        if (type.description) option.description = type.description;
+        if (type.emoji) option.emoji = type.emoji;
+        return option;
+      })
+    );
+
+  const row = new ActionRowBuilder().addComponents(selectMenu);
+
+  await interaction.reply({
+    content: '**اختر نوع التيكت من القائمة أدناه:**',
+    components: [row],
+    ephemeral: true
+  });
+}
+
+async function createTicket(interaction, ticketTypeName) {
   const guild = interaction.guild;
   const member = interaction.member;
 
@@ -34,10 +64,13 @@ async function createTicket(interaction) {
   const categoryId = serverSettings.ticketCategory;
 
   const ticketNumber = Math.floor(Math.random() * 10000);
-  const channelName = `ticket-${ticketNumber}`;
+  const safeTypeName = ticketTypeName
+    ? ticketTypeName.replace(/\s+/g, '-').toLowerCase().substring(0, 20)
+    : 'ticket';
+  const channelName = `${safeTypeName}-${ticketNumber}`;
 
   const existingTicket = guild.channels.cache.find(
-    channel => channel.name.startsWith('ticket-') &&
+    channel => channel.name.includes('ticket') &&
       channel.topic && channel.topic.includes(member.id)
   );
 
@@ -53,7 +86,7 @@ async function createTicket(interaction) {
       name: channelName,
       type: ChannelType.GuildText,
       parent: categoryId,
-      topic: `تيكت للعضو: ${member.user.tag} (${member.id})`,
+      topic: `تيكت للعضو: ${member.user.tag} (${member.id}) | النوع: ${ticketTypeName || 'عام'}`,
       permissionOverwrites: [
         {
           id: guild.id,
@@ -90,6 +123,7 @@ async function createTicket(interaction) {
       .setTitle(`🎫 تيكت رقم: ${ticketNumber}`)
       .setDescription(
         `تم إنشاء تيكتك بنجاح. سيتم الرد عليك في أقرب وقت ممكن.\n\n` +
+        `> 📂 **النوع:** ${ticketTypeName || 'عام'}\n` +
         `> <t:${now}:f>`
       )
       .setColor(0xFFFFFF)
@@ -131,7 +165,7 @@ async function claimTicket(interaction) {
   const channel = interaction.channel;
   const member = interaction.member;
 
-  if (!channel.name.startsWith('ticket-')) {
+  if (!channel.topic || (!channel.name.includes('ticket') && !channel.topic.includes('تيكت'))) {
     return interaction.reply({
       content: '❌ هذا الأمر يعمل فقط في قنوات التيكتات!',
       ephemeral: true
@@ -166,9 +200,7 @@ async function claimTicket(interaction) {
       .setColor(0xFFFFFF)
       .setTimestamp();
 
-    await interaction.reply({
-      embeds: [claimEmbed]
-    });
+    await interaction.reply({ embeds: [claimEmbed] });
 
     if (ticketRoleId) {
       await channel.send(`<@&${ticketRoleId}>`);
@@ -187,7 +219,7 @@ async function closeTicket(interaction) {
   const channel = interaction.channel;
   const member = interaction.member;
 
-  if (!channel.name.startsWith('ticket-')) {
+  if (!channel.topic || !channel.topic.includes('تيكت')) {
     return interaction.reply({
       content: '❌ هذا الأمر يعمل فقط في قنوات التيكتات!',
       ephemeral: true
@@ -209,9 +241,7 @@ async function closeTicket(interaction) {
       .setDescription('سيتم حذف هذا التيكت خلال 5 ثوانٍ...')
       .setColor(0xFFFFFF);
 
-    await interaction.reply({
-      embeds: [closeEmbed]
-    });
+    await interaction.reply({ embeds: [closeEmbed] });
 
     const ticketLogChannelId = config.tickets?.ticketLogChannelId;
     if (ticketLogChannelId) {
@@ -253,6 +283,7 @@ async function closeTicket(interaction) {
 }
 
 module.exports = {
+  showTicketMenu,
   createTicket,
   claimTicket,
   closeTicket
