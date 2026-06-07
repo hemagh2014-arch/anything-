@@ -2,7 +2,9 @@
   "token": "",
   "prefix": "+",
   "clientId": "",
-  "developerIds": [""],
+  "developerIds": [
+    ""
+  ],
   "suggestions": {
     "suggestionsChannelId": "",
     "backgroundUrl": "https://media.discordapp.net/attachments/1414271464667873300/1435826718416965823/D8AED984D981D98AD8A7D8AA-D8A8D986D981D8B3D8ACD98A-D8B3D8A7D8AFD987-12.png?ex=690d6156&is=690c0fd6&hm=c375ee54d51624a54e70a709e9bf1fcc8a5885426eb247b56352ec2057942a96&=&format=webp&quality=lossless&width=1094&height=684",
@@ -44,5 +46,6 @@
     "dailyRewardEnabled": true,
     "minStartingCoins": 1,
     "maxStartingCoins": 1000000000
-  }
+  },
+  "lineImageUrl": "https://raw.githubusercontent.com/hemagh2014-arch/anything-/main/data/line-image.png"
 }
