@@ -333,7 +333,7 @@ client.on('messageCreate', async message => {
       await message.delete().catch(() => {});
       const lineUrl = config.lineImageUrl;
       if (lineUrl) {
-        await message.channel.send({ files: [{ attachment: lineUrl, name: 'line.png' }] });
+        await message.channel.send({ embeds: [{ image: { url: lineUrl } }] });
       } else {
         await message.channel.send({
           embeds: [{ color: 0x5865F2, description: '────────────────────────────────────────────' }]
