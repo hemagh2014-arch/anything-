@@ -30,6 +30,28 @@ const activeReviews = new Map();
 const voiceReconnectAttempts = new Map();
 
 const autoResponsesPath = path.join(__dirname, 'data/autoResponses.json');
+// Auto-download line image from GitHub on startup
+async function ensureLineImage() {
+  const imgPath = path.join(__dirname, 'data/line-image.png');
+  if (fs.existsSync(imgPath)) return;
+  try {
+    const ghToken = config.token; // uses DISCORD_TOKEN env - we need GITHUB_TOKEN
+    const res = await fetch('https://api.github.com/repos/hemagh2014-arch/anything-/contents/data/line-image.png', {
+      headers: {
+        Authorization: 'token ' + (process.env.GITHUB_TOKEN || config.githubToken || ''),
+        Accept: 'application/vnd.github.v3.raw'
+      }
+    });
+    if (!res.ok) { console.log('[line-image] Could not download, status:', res.status); return; }
+    const buf = Buffer.from(await res.arrayBuffer());
+    fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+    fs.writeFileSync(imgPath, buf);
+    console.log('[line-image] Downloaded successfully (' + buf.length + ' bytes)');
+  } catch(e) {
+    console.error('[line-image] Download error:', e.message);
+  }
+}
+
 
 function loadAutoResponses() {
   try {
@@ -693,5 +715,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
   }
 });
 
+ensureLineImage();
 client.login(config.token);
 
