@@ -331,13 +331,13 @@ client.on('messageCreate', async message => {
   if (message.author.id === '1239996265144647710' && message.content === '-') {
     try {
       await message.delete().catch(() => {});
-      const lineUrl = config.lineImageUrl;
-      if (lineUrl) {
-        await message.channel.send({ embeds: [{ image: { url: lineUrl } }] });
+      const localImg = './data/line-image.png';
+      if (fs.existsSync(localImg)) {
+        await message.channel.send({ files: [{ attachment: localImg, name: 'line.png' }] });
+      } else if (config.lineImageUrl) {
+        await message.channel.send({ embeds: [{ image: { url: config.lineImageUrl } }] });
       } else {
-        await message.channel.send({
-          embeds: [{ color: 0x5865F2, description: '────────────────────────────────────────────' }]
-        });
+        await message.channel.send({ embeds: [{ color: 0x5865F2, description: '────────────────────────────────────────────' }] });
       }
     } catch(e) { console.error('Line shortcut error:', e); }
     return;
