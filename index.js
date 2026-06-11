@@ -10,6 +10,7 @@ const { getReviewChannel } = require('./commands/utility/review');
 const { sendWelcome, sendJoinLeaveLog } = require('./utils/welcome');
 const { loadXPData, addXP } = require('./utils/xp');
 const { loadCoinsData, resetAllCoins, resetCoins } = require('./utils/coins');
+const { loadVoiceData, onVoiceJoin, onVoiceLeave } = require('./utils/voiceTime');
 const { handleEmbedButton } = require('./utils/embedHandler');
 
 const {
@@ -181,6 +182,7 @@ client.once('ready', async () => {
   loadData();
   loadXPData();
   loadCoinsData();
+  loadVoiceData();
   client.guilds.cache.forEach(guild => initGuildData(guild.id));
 
   try {
@@ -705,6 +707,22 @@ client.on('roleDelete', async (role) => {
 });
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
+  // Track voice time for users
+  const userId = newState.member?.id || oldState.member?.id;
+  const guildId = newState.guild?.id || oldState.guild?.id;
+  if (userId && guildId && userId !== client.user.id) {
+    const wasInVoice = !!oldState.channelId;
+    const isInVoice = !!newState.channelId;
+    if (!wasInVoice && isInVoice) {
+      onVoiceJoin(userId, guildId);
+    } else if (wasInVoice && !isInVoice) {
+      onVoiceLeave(userId, guildId);
+    } else if (wasInVoice && isInVoice && oldState.channelId !== newState.channelId) {
+      onVoiceLeave(userId, guildId);
+      onVoiceJoin(userId, guildId);
+    }
+  }
+
   if (!config.voice?.voiceChannelId) return;
 
   if (newState.member.id === client.user.id) {
