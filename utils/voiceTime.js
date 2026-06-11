@@ -28,10 +28,17 @@ function saveVoiceData() {
   }
 }
 
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
 function getUserVoiceData(userId, guildId) {
   if (!voiceData[guildId]) voiceData[guildId] = {};
   if (!voiceData[guildId][userId]) {
-    voiceData[guildId][userId] = { totalSeconds: 0 };
+    voiceData[guildId][userId] = { totalSeconds: 0, daily: {} };
+  }
+  if (!voiceData[guildId][userId].daily) {
+    voiceData[guildId][userId].daily = {};
   }
   return voiceData[guildId][userId];
 }
@@ -47,8 +54,21 @@ function onVoiceLeave(userId, guildId) {
   if (!joinTime) return;
   const elapsed = Math.floor((Date.now() - joinTime) / 1000);
   delete activeSessions[key];
+
   const userData = getUserVoiceData(userId, guildId);
   userData.totalSeconds += elapsed;
+
+  // Track daily seconds
+  const todayKey = getTodayKey();
+  if (!userData.daily[todayKey]) userData.daily[todayKey] = 0;
+  userData.daily[todayKey] += elapsed;
+
+  // Keep only last 35 days
+  const keys = Object.keys(userData.daily).sort();
+  if (keys.length > 35) {
+    keys.slice(0, keys.length - 35).forEach(k => delete userData.daily[k]);
+  }
+
   saveVoiceData();
 }
 
@@ -71,14 +91,43 @@ function formatVoiceTime(seconds) {
   return `${days}ي ${hrs}س`;
 }
 
-function getTopVoiceUsers(guildId, limit = 10) {
+function getPeriodSeconds(userData, period, liveExtra = 0) {
+  if (!period || period === 'alltime') return userData.totalSeconds + liveExtra;
+  if (!userData.daily) return liveExtra;
+
+  let startDate;
+  const now = new Date();
+  if (period === 'daily') {
+    startDate = now.toISOString().slice(0, 10);
+  } else if (period === 'weekly') {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 7);
+    startDate = d.toISOString().slice(0, 10);
+  } else if (period === 'monthly') {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 30);
+    startDate = d.toISOString().slice(0, 10);
+  }
+
+  const fromDaily = Object.entries(userData.daily)
+    .filter(([dateKey]) => dateKey >= startDate)
+    .reduce((sum, [, secs]) => sum + secs, 0);
+
+  // Add today's live session if period includes today
+  return fromDaily + liveExtra;
+}
+
+function getTopVoiceUsers(guildId, limit = 10, period = 'alltime') {
   if (!voiceData[guildId]) return [];
+
   return Object.entries(voiceData[guildId])
     .map(([userId, data]) => {
       const key = `${guildId}:${userId}`;
-      const extra = activeSessions[key] ? Math.floor((Date.now() - activeSessions[key]) / 1000) : 0;
-      return { userId, totalSeconds: data.totalSeconds + extra };
+      const liveExtra = activeSessions[key] ? Math.floor((Date.now() - activeSessions[key]) / 1000) : 0;
+      const periodSeconds = getPeriodSeconds(data, period, liveExtra);
+      return { userId, totalSeconds: periodSeconds };
     })
+    .filter(u => u.totalSeconds > 0)
     .sort((a, b) => b.totalSeconds - a.totalSeconds)
     .slice(0, limit);
 }
