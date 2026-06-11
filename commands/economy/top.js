@@ -3,21 +3,53 @@ const { getTopUsers, resetXP } = require('../../utils/xp');
 const { getTopVoiceUsers, formatVoiceTime, resetVoiceTime } = require('../../utils/voiceTime');
 const { isDeveloper } = require('../../utils/security');
 
+const PERIOD_LABELS = {
+  daily: '📅 اليوم',
+  weekly: '📆 آخر 7 أيام',
+  monthly: '🗓️ آخر 30 يوم',
+  alltime: '🌐 منذ البداية'
+};
+
+const PERIOD_CHOICES = [
+  { name: 'منذ البداية (الكل)', value: 'alltime' },
+  { name: 'اليوم', value: 'daily' },
+  { name: 'آخر 7 أيام', value: 'weekly' },
+  { name: 'آخر 30 يوم', value: 'monthly' }
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('top')
     .setDescription('عرض التوب | Shows the leaderboard')
     .addSubcommand(sub =>
       sub.setName('show')
-        .setDescription('عرض التوب الكامل | Show the full leaderboard')
+        .setDescription('عرض توب الرسائل والـ XP')
+        .addStringOption(opt =>
+          opt.setName('period')
+            .setDescription('الفترة الزمنية')
+            .setRequired(false)
+            .addChoices(...PERIOD_CHOICES)
+        )
     )
     .addSubcommand(sub =>
       sub.setName('xp')
-        .setDescription('عرض توب الـ XP والرسائل | Show XP & messages leaderboard')
+        .setDescription('عرض توب الـ XP والرسائل')
+        .addStringOption(opt =>
+          opt.setName('period')
+            .setDescription('الفترة الزمنية')
+            .setRequired(false)
+            .addChoices(...PERIOD_CHOICES)
+        )
     )
     .addSubcommand(sub =>
       sub.setName('voice')
-        .setDescription('عرض توب الفويس | Show voice time leaderboard')
+        .setDescription('عرض توب الفويس')
+        .addStringOption(opt =>
+          opt.setName('period')
+            .setDescription('الفترة الزمنية')
+            .setRequired(false)
+            .addChoices(...PERIOD_CHOICES)
+        )
     )
     .addSubcommand(sub =>
       sub.setName('restart')
@@ -26,11 +58,12 @@ module.exports = {
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
+    const period = interaction.options.getString('period') || 'alltime';
 
     if (subcommand === 'show' || subcommand === 'xp') {
-      await this.showXPTop(interaction, interaction.guild);
+      await this.showXPTop(interaction, interaction.guild, period);
     } else if (subcommand === 'voice') {
-      await this.showVoiceTop(interaction, interaction.guild);
+      await this.showVoiceTop(interaction, interaction.guild, period);
     } else if (subcommand === 'restart') {
       if (!isDeveloper(interaction.user.id)) {
         return interaction.reply({ content: '❌ المبرمج فقط من يستطيع إستخدام هذا الأمر!', ephemeral: true });
@@ -61,16 +94,30 @@ module.exports = {
       return message.reply({ embeds: [embed] });
     }
 
-    await this.showXPTop(message, message.guild);
+    // +top [voice] [daily/weekly/monthly/alltime]
+    const subArg = (args[0] || '').toLowerCase();
+    const periodArg = (args[1] || args[0] || '').toLowerCase();
+
+    const periodMap = { daily: 'daily', اليوم: 'daily', weekly: 'weekly', اسبوعي: 'weekly', أسبوعي: 'weekly', monthly: 'monthly', شهري: 'monthly', alltime: 'alltime', كل: 'alltime', الكل: 'alltime' };
+    const period = periodMap[periodArg] || periodMap[subArg] || 'alltime';
+
+    if (subArg === 'voice' || subArg === 'فويس') {
+      await this.showVoiceTop(message, message.guild, period);
+    } else {
+      await this.showXPTop(message, message.guild, period);
+    }
   },
 
-  async showXPTop(target, guild) {
+  async showXPTop(target, guild, period = 'alltime') {
     try {
-      const topUsers = getTopUsers(guild.id, 10);
+      await (target.deferReply ? target.deferReply() : Promise.resolve());
+
+      const topUsers = getTopUsers(guild.id, 10, period);
+      const periodLabel = PERIOD_LABELS[period] || PERIOD_LABELS.alltime;
 
       if (topUsers.length === 0) {
-        const reply = '❌ لا يوجد مستخدمين في التوب بعد!';
-        if (target.reply) return target.reply(reply);
+        const reply = `❌ لا يوجد نشاط في الفترة المحددة (${periodLabel})!`;
+        if (target.editReply) return target.editReply(reply);
         return target.channel.send(reply);
       }
 
@@ -83,34 +130,41 @@ module.exports = {
         const userName = member ? member.user.username : `Unknown (${user.userId})`;
         const mention = member ? member.toString() : `Unknown (${user.userId})`;
         description += `${medals[i]} **${userName}** ${mention}\n`;
-        description += `┣ 📨 الرسائل: **${user.totalMessages}**\n`;
-        description += `┗ ⭐ الـ XP: **${user.xp}** | المستوى: **${user.level}**\n\n`;
+        description += `┣ 📨 الرسائل: **${user.periodMessages}**\n`;
+        if (period === 'alltime') {
+          description += `┗ ⭐ الـ XP: **${user.xp}** | المستوى: **${user.level}**\n\n`;
+        } else {
+          description += `┗ 🌐 إجمالي الرسائل: **${user.totalMessages}**\n\n`;
+        }
       }
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('🏆 التوب الكتابي - أكثر 10 متفاعلين')
+        .setTitle(`🏆 التوب الكتابي — ${periodLabel}`)
         .setDescription(description)
         .setFooter({ text: guild.name, iconURL: guild.iconURL() || undefined })
         .setTimestamp();
 
-      if (target.reply) await target.reply({ embeds: [embed] });
+      if (target.editReply) await target.editReply({ embeds: [embed] });
       else await target.channel.send({ embeds: [embed] });
     } catch (error) {
       console.error('Top XP command error:', error);
       const reply = '❌ حدث خطأ في عرض التوب!';
-      if (target.reply) await target.reply(reply);
+      if (target.editReply) await target.editReply(reply).catch(() => target.reply(reply));
       else await target.channel.send(reply);
     }
   },
 
-  async showVoiceTop(target, guild) {
+  async showVoiceTop(target, guild, period = 'alltime') {
     try {
-      const topUsers = getTopVoiceUsers(guild.id, 10);
+      await (target.deferReply ? target.deferReply() : Promise.resolve());
+
+      const topUsers = getTopVoiceUsers(guild.id, 10, period);
+      const periodLabel = PERIOD_LABELS[period] || PERIOD_LABELS.alltime;
 
       if (topUsers.length === 0) {
-        const reply = '❌ لا يوجد مستخدمين في توب الفويس بعد!';
-        if (target.reply) return target.reply(reply);
+        const reply = `❌ لا يوجد نشاط في الفويس في الفترة المحددة (${periodLabel})!`;
+        if (target.editReply) return target.editReply(reply);
         return target.channel.send(reply);
       }
 
@@ -128,17 +182,17 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('🎙️ توب الفويس - أكثر 10 في الرومات')
+        .setTitle(`🎙️ توب الفويس — ${periodLabel}`)
         .setDescription(description)
         .setFooter({ text: guild.name, iconURL: guild.iconURL() || undefined })
         .setTimestamp();
 
-      if (target.reply) await target.reply({ embeds: [embed] });
+      if (target.editReply) await target.editReply({ embeds: [embed] });
       else await target.channel.send({ embeds: [embed] });
     } catch (error) {
       console.error('Top voice command error:', error);
       const reply = '❌ حدث خطأ في عرض توب الفويس!';
-      if (target.reply) await target.reply(reply);
+      if (target.editReply) await target.editReply(reply).catch(() => target.reply(reply));
       else await target.channel.send(reply);
     }
   }
