@@ -17,6 +17,9 @@ const PERIOD_CHOICES = [
   { name: 'آخر 30 يوم', value: 'monthly' }
 ];
 
+const TOP_SIZE = 5;
+const MEDALS = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('top')
@@ -61,9 +64,9 @@ module.exports = {
     const period = interaction.options.getString('period') || 'alltime';
 
     if (subcommand === 'show' || subcommand === 'xp') {
-      await this.showXPTop(interaction, interaction.guild, period);
+      await this.showXPTop(interaction, interaction.guild, period, interaction.user.id);
     } else if (subcommand === 'voice') {
-      await this.showVoiceTop(interaction, interaction.guild, period);
+      await this.showVoiceTop(interaction, interaction.guild, period, interaction.user.id);
     } else if (subcommand === 'restart') {
       if (!isDeveloper(interaction.user.id)) {
         return interaction.reply({ content: '❌ المبرمج فقط من يستطيع إستخدام هذا الأمر!', ephemeral: true });
@@ -94,47 +97,73 @@ module.exports = {
       return message.reply({ embeds: [embed] });
     }
 
-    // +top [voice] [daily/weekly/monthly/alltime]
     const subArg = (args[0] || '').toLowerCase();
     const periodArg = (args[1] || args[0] || '').toLowerCase();
-
-    const periodMap = { daily: 'daily', اليوم: 'daily', weekly: 'weekly', اسبوعي: 'weekly', أسبوعي: 'weekly', monthly: 'monthly', شهري: 'monthly', alltime: 'alltime', كل: 'alltime', الكل: 'alltime' };
+    const periodMap = {
+      daily: 'daily', اليوم: 'daily',
+      weekly: 'weekly', اسبوعي: 'weekly', أسبوعي: 'weekly',
+      monthly: 'monthly', شهري: 'monthly',
+      alltime: 'alltime', كل: 'alltime', الكل: 'alltime'
+    };
     const period = periodMap[periodArg] || periodMap[subArg] || 'alltime';
 
     if (subArg === 'voice' || subArg === 'فويس') {
-      await this.showVoiceTop(message, message.guild, period);
+      await this.showVoiceTop(message, message.guild, period, message.author.id);
     } else {
-      await this.showXPTop(message, message.guild, period);
+      await this.showXPTop(message, message.guild, period, message.author.id);
     }
   },
 
-  async showXPTop(target, guild, period = 'alltime') {
+  async showXPTop(target, guild, period = 'alltime', callerId = null) {
     try {
       await (target.deferReply ? target.deferReply() : Promise.resolve());
 
-      const topUsers = getTopUsers(guild.id, 10, period);
+      // Get top 5 + full list to find caller rank
+      const allUsers = getTopUsers(guild.id, 500, period);
+      const top5 = allUsers.slice(0, TOP_SIZE);
       const periodLabel = PERIOD_LABELS[period] || PERIOD_LABELS.alltime;
 
-      if (topUsers.length === 0) {
+      if (top5.length === 0) {
         const reply = `❌ لا يوجد نشاط في الفترة المحددة (${periodLabel})!`;
         if (target.editReply) return target.editReply(reply);
         return target.channel.send(reply);
       }
 
-      const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
       let description = '';
-
-      for (let i = 0; i < topUsers.length; i++) {
-        const user = topUsers[i];
+      for (let i = 0; i < top5.length; i++) {
+        const user = top5[i];
         const member = await guild.members.fetch(user.userId).catch(() => null);
         const userName = member ? member.user.username : `Unknown (${user.userId})`;
         const mention = member ? member.toString() : `Unknown (${user.userId})`;
-        description += `${medals[i]} **${userName}** ${mention}\n`;
+        description += `${MEDALS[i]} **${userName}** ${mention}\n`;
         description += `┣ 📨 الرسائل: **${user.periodMessages}**\n`;
         if (period === 'alltime') {
-          description += `┗ ⭐ الـ XP: **${user.xp}** | المستوى: **${user.level}**\n\n`;
+          description += `┗ ⭐ XP: **${user.xp}** | المستوى: **${user.level}**\n\n`;
         } else {
           description += `┗ 🌐 إجمالي الرسائل: **${user.totalMessages}**\n\n`;
+        }
+      }
+
+      // Check if caller is in top 5
+      const callerInTop = callerId && top5.some(u => u.userId === callerId);
+      if (callerId && !callerInTop) {
+        const callerRank = allUsers.findIndex(u => u.userId === callerId);
+        if (callerRank !== -1) {
+          const callerData = allUsers[callerRank];
+          const callerMember = await guild.members.fetch(callerId).catch(() => null);
+          const callerName = callerMember ? callerMember.user.username : `Unknown`;
+          const callerMention = callerMember ? callerMember.toString() : `Unknown`;
+          description += `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n`;
+          description += `**#${callerRank + 1}** ${callerName} ${callerMention}\n`;
+          description += `┣ 📨 الرسائل: **${callerData.periodMessages}**\n`;
+          if (period === 'alltime') {
+            description += `┗ ⭐ XP: **${callerData.xp}** | المستوى: **${callerData.level}**\n`;
+          } else {
+            description += `┗ 🌐 إجمالي: **${callerData.totalMessages}**\n`;
+          }
+        } else {
+          description += `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n`;
+          description += `لم يتم تسجيل نشاط لك في هذه الفترة بعد.`;
         }
       }
 
@@ -155,29 +184,46 @@ module.exports = {
     }
   },
 
-  async showVoiceTop(target, guild, period = 'alltime') {
+  async showVoiceTop(target, guild, period = 'alltime', callerId = null) {
     try {
       await (target.deferReply ? target.deferReply() : Promise.resolve());
 
-      const topUsers = getTopVoiceUsers(guild.id, 10, period);
+      const allUsers = getTopVoiceUsers(guild.id, 500, period);
+      const top5 = allUsers.slice(0, TOP_SIZE);
       const periodLabel = PERIOD_LABELS[period] || PERIOD_LABELS.alltime;
 
-      if (topUsers.length === 0) {
+      if (top5.length === 0) {
         const reply = `❌ لا يوجد نشاط في الفويس في الفترة المحددة (${periodLabel})!`;
         if (target.editReply) return target.editReply(reply);
         return target.channel.send(reply);
       }
 
-      const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
       let description = '';
-
-      for (let i = 0; i < topUsers.length; i++) {
-        const user = topUsers[i];
+      for (let i = 0; i < top5.length; i++) {
+        const user = top5[i];
         const member = await guild.members.fetch(user.userId).catch(() => null);
         const userName = member ? member.user.username : `Unknown (${user.userId})`;
         const mention = member ? member.toString() : `Unknown (${user.userId})`;
-        description += `${medals[i]} **${userName}** ${mention}\n`;
+        description += `${MEDALS[i]} **${userName}** ${mention}\n`;
         description += `┗ 🎙️ وقت الفويس: **${formatVoiceTime(user.totalSeconds)}**\n\n`;
+      }
+
+      // Check if caller is in top 5
+      const callerInTop = callerId && top5.some(u => u.userId === callerId);
+      if (callerId && !callerInTop) {
+        const callerRank = allUsers.findIndex(u => u.userId === callerId);
+        if (callerRank !== -1) {
+          const callerData = allUsers[callerRank];
+          const callerMember = await guild.members.fetch(callerId).catch(() => null);
+          const callerName = callerMember ? callerMember.user.username : `Unknown`;
+          const callerMention = callerMember ? callerMember.toString() : `Unknown`;
+          description += `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n`;
+          description += `**#${callerRank + 1}** ${callerName} ${callerMention}\n`;
+          description += `┗ 🎙️ وقت الفويس: **${formatVoiceTime(callerData.totalSeconds)}**\n`;
+        } else {
+          description += `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n`;
+          description += `لم يتم تسجيل وقت فويس لك في هذه الفترة بعد.`;
+        }
       }
 
       const embed = new EmbedBuilder()
