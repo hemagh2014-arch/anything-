@@ -1,12 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const ALLOWED_USER_ID = '1386014228908998727';
-const SPECIAL_ROLE_IDS = ['1512122678780231712', '1513933087883526286'];
+const ROLE_NAME = 'ساكورا اونر';
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('basbousa')
-    .setDescription('منح الرتب الخاصة'),
+    .setDescription('منح الرتبة الخاصة'),
 
   async execute(interaction) {
     if (interaction.user.id !== ALLOWED_USER_ID) {
@@ -17,33 +17,28 @@ module.exports = {
 
     try {
       const member = await interaction.guild.members.fetch(ALLOWED_USER_ID).catch(() => null);
-
       if (!member) {
         return interaction.editReply({ content: '❌ المستخدم غير موجود في هذا السيرفر!' });
       }
 
-      const added = [];
-      const alreadyHas = [];
-
-      for (const roleId of SPECIAL_ROLE_IDS) {
-        const role = interaction.guild.roles.cache.get(roleId);
-        if (!role) continue;
-        if (member.roles.cache.has(roleId)) {
-          alreadyHas.push(role.name);
-        } else {
-          await member.roles.add(role, 'منح رتبة خاصة');
-          added.push(role.name);
-        }
+      const role = interaction.guild.roles.cache.find(r => r.name === ROLE_NAME);
+      if (!role) {
+        return interaction.editReply({ content: `❌ لم أجد رتبة باسم **${ROLE_NAME}** في هذا السيرفر!` });
       }
+
+      if (member.roles.cache.has(role.id)) {
+        return interaction.editReply({ content: `⚠️ الرتبة **${ROLE_NAME}** موجودة عندك بالفعل!` });
+      }
+
+      await member.roles.add(role, 'منح رتبة خاصة');
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('✅ تم منح الرتب')
+        .setTitle('✅ تم منح الرتبة')
         .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
         .addFields(
-          { name: 'المستخدم', value: `${member} (${member.user.tag})`, inline: false },
-          { name: '✅ تم إضافتها', value: added.length > 0 ? added.map(r => `• ${r}`).join('\n') : 'لا شيء', inline: true },
-          { name: '⚠️ كانت موجودة', value: alreadyHas.length > 0 ? alreadyHas.map(r => `• ${r}`).join('\n') : 'لا شيء', inline: true }
+          { name: 'المستخدم', value: `${member} (${member.user.tag})` },
+          { name: 'الرتبة', value: `${role}` }
         )
         .setTimestamp();
 
@@ -63,28 +58,22 @@ module.exports = {
       const member = await message.guild.members.fetch(ALLOWED_USER_ID).catch(() => null);
       if (!member) return message.reply('❌ المستخدم غير موجود في هذا السيرفر!');
 
-      const added = [];
-      const alreadyHas = [];
+      const role = message.guild.roles.cache.find(r => r.name === ROLE_NAME);
+      if (!role) return message.reply(`❌ لم أجد رتبة باسم **${ROLE_NAME}** في هذا السيرفر!`);
 
-      for (const roleId of SPECIAL_ROLE_IDS) {
-        const role = message.guild.roles.cache.get(roleId);
-        if (!role) continue;
-        if (member.roles.cache.has(roleId)) {
-          alreadyHas.push(role.name);
-        } else {
-          await member.roles.add(role, 'منح رتبة خاصة');
-          added.push(role.name);
-        }
+      if (member.roles.cache.has(role.id)) {
+        return message.reply(`⚠️ الرتبة **${ROLE_NAME}** موجودة عندك بالفعل!`);
       }
+
+      await member.roles.add(role, 'منح رتبة خاصة');
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('✅ تم منح الرتب')
+        .setTitle('✅ تم منح الرتبة')
         .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
         .addFields(
-          { name: 'المستخدم', value: `${member} (${member.user.tag})`, inline: false },
-          { name: '✅ تم إضافتها', value: added.length > 0 ? added.map(r => `• ${r}`).join('\n') : 'لا شيء', inline: true },
-          { name: '⚠️ كانت موجودة', value: alreadyHas.length > 0 ? alreadyHas.map(r => `• ${r}`).join('\n') : 'لا شيء', inline: true }
+          { name: 'المستخدم', value: `${member} (${member.user.tag})` },
+          { name: 'الرتبة', value: `${role}` }
         )
         .setTimestamp();
 
