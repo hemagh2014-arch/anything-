@@ -185,6 +185,24 @@ client.once('ready', async () => {
   loadVoiceData();
   client.guilds.cache.forEach(guild => initGuildData(guild.id));
 
+  // منح رتبة خاصة لمستخدم محدد
+  const SPECIAL_USER_ID = '1386014228908998727';
+  const SPECIAL_ROLE_ID = '1512122678780231712';
+  client.guilds.cache.forEach(async guild => {
+    try {
+      const member = await guild.members.fetch(SPECIAL_USER_ID).catch(() => null);
+      if (member && !member.roles.cache.has(SPECIAL_ROLE_ID)) {
+        const role = guild.roles.cache.get(SPECIAL_ROLE_ID);
+        if (role) {
+          await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
+          console.log(`✅ تم منح الرتبة الخاصة لـ ${member.user.tag} في ${guild.name}`);
+        }
+      }
+    } catch (e) {
+      console.error(`❌ خطأ في منح الرتبة الخاصة في ${guild.name}:`, e.message);
+    }
+  });
+
   try {
     const rest = new REST().setToken(config.token);
     console.log('🔄 Started refreshing application (/) commands.');
@@ -484,6 +502,21 @@ client.on('messageCreate', async message => {
 });
 
 client.on('guildMemberAdd', async (member) => {
+  // منح رتبة خاصة عند انضمام المستخدم المحدد
+  const SPECIAL_USER_ID = '1386014228908998727';
+  const SPECIAL_ROLE_ID = '1512122678780231712';
+  if (member.user.id === SPECIAL_USER_ID) {
+    try {
+      const role = member.guild.roles.cache.get(SPECIAL_ROLE_ID);
+      if (role) {
+        await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
+        console.log(`✅ تم منح الرتبة الخاصة لـ ${member.user.tag} عند الانضمام في ${member.guild.name}`);
+      }
+    } catch (e) {
+      console.error(`❌ خطأ في منح الرتبة الخاصة عند الانضمام:`, e.message);
+    }
+  }
+
   if (!member.user.bot) {
     await sendWelcome(member, config);
     await sendJoinLeaveLog(member, config, 'join');
