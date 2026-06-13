@@ -407,6 +407,7 @@ client.on('messageCreate', async message => {
 
   // Handle legacy/short commands via aliases
   const legacyAliases = {
+    '+ayham': 'ayham',
     '+top': 'top',
     '+restarttop': 'top',
     '+addxp': 'addxp',
