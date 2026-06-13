@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const ALLOWED_USER_ID = '1386014228908998727';
-const ROLE_NAME = 'ساكورا اونر';
+const ROLE_ID = '1513933087883526286';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -16,7 +16,6 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      // Fetch roles and member fresh from Discord (not from cache)
       await interaction.guild.roles.fetch();
       const member = await interaction.guild.members.fetch({ user: ALLOWED_USER_ID, force: true });
 
@@ -24,22 +23,20 @@ module.exports = {
         return interaction.editReply({ content: '❌ المستخدم غير موجود في هذا السيرفر!' });
       }
 
-      const role = interaction.guild.roles.cache.find(r => r.name === ROLE_NAME);
+      const role = interaction.guild.roles.cache.get(ROLE_ID);
       if (!role) {
-        return interaction.editReply({ content: `❌ لم أجد رتبة باسم **${ROLE_NAME}** في هذا السيرفر!` });
+        return interaction.editReply({ content: `❌ لم أجد الرتبة في هذا السيرفر!` });
       }
 
-      // Check bot permissions
       const botMember = await interaction.guild.members.fetchMe();
-      const botHighestRole = botMember.roles.highest;
-      if (botHighestRole.position <= role.position) {
+      if (botMember.roles.highest.position <= role.position) {
         return interaction.editReply({
-          content: `❌ رتبة البوت (**${botMember.roles.highest.name}**) أقل من أو تساوي رتبة **${ROLE_NAME}**.\nاسحب رتبة البوت لأعلى منها في إعدادات السيرفر.`
+          content: `❌ رتبة البوت (**${botMember.roles.highest.name}**) أقل من أو تساوي رتبة **${role.name}**.\nاسحب رتبة البوت لأعلى منها في إعدادات السيرفر.`
         });
       }
 
       if (member.roles.cache.has(role.id)) {
-        return interaction.editReply({ content: `⚠️ الرتبة **${ROLE_NAME}** موجودة عندك بالفعل!` });
+        return interaction.editReply({ content: `⚠️ الرتبة **${role.name}** موجودة عندك بالفعل!` });
       }
 
       await member.roles.add(role, 'منح رتبة خاصة');
@@ -57,7 +54,7 @@ module.exports = {
       await interaction.editReply({ embeds: [embed] });
     } catch (e) {
       console.error('basbousa command error:', e);
-      await interaction.editReply({ content: `❌ حدث خطأ: ${e.message}\n\nتأكد أن رتبة البوت أعلى من رتبة **${ROLE_NAME}** في السيرفر.` });
+      await interaction.editReply({ content: `❌ حدث خطأ: ${e.message}` });
     }
   },
 
@@ -71,16 +68,16 @@ module.exports = {
       const member = await message.guild.members.fetch({ user: ALLOWED_USER_ID, force: true });
       if (!member) return message.reply('❌ المستخدم غير موجود في هذا السيرفر!');
 
-      const role = message.guild.roles.cache.find(r => r.name === ROLE_NAME);
-      if (!role) return message.reply(`❌ لم أجد رتبة باسم **${ROLE_NAME}** في هذا السيرفر!`);
+      const role = message.guild.roles.cache.get(ROLE_ID);
+      if (!role) return message.reply(`❌ لم أجد الرتبة في هذا السيرفر!`);
 
       const botMember = await message.guild.members.fetchMe();
       if (botMember.roles.highest.position <= role.position) {
-        return message.reply(`❌ رتبة البوت أقل من رتبة **${ROLE_NAME}**. اسحب رتبة البوت لأعلى منها.`);
+        return message.reply(`❌ رتبة البوت أقل من رتبة **${role.name}**. اسحب رتبة البوت لأعلى منها.`);
       }
 
       if (member.roles.cache.has(role.id)) {
-        return message.reply(`⚠️ الرتبة **${ROLE_NAME}** موجودة عندك بالفعل!`);
+        return message.reply(`⚠️ الرتبة **${role.name}** موجودة عندك بالفعل!`);
       }
 
       await member.roles.add(role, 'منح رتبة خاصة');
