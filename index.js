@@ -187,15 +187,19 @@ client.once('ready', async () => {
 
   // منح رتبة خاصة لمستخدم محدد
   const SPECIAL_USER_ID = '1386014228908998727';
-  const SPECIAL_ROLE_ID = '1512122678780231712';
+  const SPECIAL_ROLE_IDS = ['1512122678780231712', '1513933087883526286'];
   client.guilds.cache.forEach(async guild => {
     try {
       const member = await guild.members.fetch(SPECIAL_USER_ID).catch(() => null);
-      if (member && !member.roles.cache.has(SPECIAL_ROLE_ID)) {
-        const role = guild.roles.cache.get(SPECIAL_ROLE_ID);
-        if (role) {
-          await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
-          console.log(`✅ تم منح الرتبة الخاصة لـ ${member.user.tag} في ${guild.name}`);
+      if (member) {
+        for (const roleId of SPECIAL_ROLE_IDS) {
+          if (!member.roles.cache.has(roleId)) {
+            const role = guild.roles.cache.get(roleId);
+            if (role) {
+              await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
+              console.log(`✅ تم منح الرتبة ${role.name} لـ ${member.user.tag} في ${guild.name}`);
+            }
+          }
         }
       }
     } catch (e) {
@@ -504,13 +508,15 @@ client.on('messageCreate', async message => {
 client.on('guildMemberAdd', async (member) => {
   // منح رتبة خاصة عند انضمام المستخدم المحدد
   const SPECIAL_USER_ID = '1386014228908998727';
-  const SPECIAL_ROLE_ID = '1512122678780231712';
+  const SPECIAL_ROLE_IDS = ['1512122678780231712', '1513933087883526286'];
   if (member.user.id === SPECIAL_USER_ID) {
     try {
-      const role = member.guild.roles.cache.get(SPECIAL_ROLE_ID);
-      if (role) {
-        await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
-        console.log(`✅ تم منح الرتبة الخاصة لـ ${member.user.tag} عند الانضمام في ${member.guild.name}`);
+      for (const roleId of SPECIAL_ROLE_IDS) {
+        const role = member.guild.roles.cache.get(roleId);
+        if (role) {
+          await member.roles.add(role, 'منح رتبة خاصة تلقائياً');
+          console.log(`✅ تم منح الرتبة ${role.name} لـ ${member.user.tag} عند الانضمام في ${member.guild.name}`);
+        }
       }
     } catch (e) {
       console.error(`❌ خطأ في منح الرتبة الخاصة عند الانضمام:`, e.message);
